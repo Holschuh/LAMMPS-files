@@ -16,8 +16,8 @@ using namespace LAMMPS_NS;
 using namespace FixConst;
 
 const char syntax[] =
-  "fix contact/roll: Illegal fix command, syntax is 'fix ID group-ID "
-  "contact/roll <cx> <cy> <cz> <ux> <uy> <uz> <radius> <epsilon> <sigma> <cutoff>'";
+  "fix contact/roll93: Illegal fix command, syntax is 'fix ID group-ID "
+  "contact/roll93 <cx> <cy> <cz> <ux> <uy> <uz> <radius> <epsilon> <sigma> <cutoff>'";
 
 /* ---------------------------------------------------------------------- */
 
@@ -49,7 +49,7 @@ FixContactRoll93::FixContactRoll93(LAMMPS *lmp, int narg, char **arg) :
 
   unorm = sqrt(ux*ux + uy*uy + uz*uz);
   if (unorm == 0.0)
-    error->all(FLERR,"fix contact/roll: zero direction vector");
+    error->all(FLERR,"fix contact/roll93: zero direction vector");
 
   ux /= unorm;
   uy /= unorm;
@@ -114,7 +114,7 @@ int FixContactRoll93::setmask() {
 
 void FixContactRoll93::init() {
   if (strcmp(update->integrate_style,"respa") == 0)
-    error->all(FLERR,"fix contact/roll: RESPA not yet supported.");
+    error->all(FLERR,"fix contact/roll93: RESPA not yet supported.");
 }
 
 /* ---------------------------------------------------------------------- */
@@ -160,7 +160,7 @@ void FixContactRoll93::post_force(int vflag)
       double rsq = dx*dx + dy*dy + dz*dz;
 
       if (rsq < radius_sq)
-        error->one(FLERR,"fix contact/roll: atom inside cylinder");
+        error->one(FLERR,"fix contact/roll93: atom inside cylinder");
 
       if (rsq < radius_plus_cutoff_sq) {
         double r = sqrt(rsq);
