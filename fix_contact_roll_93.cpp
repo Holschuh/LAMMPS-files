@@ -1,7 +1,7 @@
 #include "math.h"
 #include "string.h"
 #include "stdlib.h"
-#include "fix_contact_roll.h"
+#include "fix_contact_roll_93.h"
 #include "atom.h"
 #include "update.h"
 #include "modify.h"
@@ -13,6 +13,7 @@
 #include "error.h"
 
 using namespace LAMMPS_NS;
+using namespace FixConst;
 
 const char syntax[] =
   "fix contact/roll: Illegal fix command, syntax is 'fix ID group-ID "
@@ -20,10 +21,9 @@ const char syntax[] =
 
 /* ---------------------------------------------------------------------- */
 
-FixContactRoll::FixContactRoll(LAMMPS *lmp, int narg, char **arg) :
+FixContactRoll93::FixContactRoll93(LAMMPS *lmp, int narg, char **arg) :
   Fix(lmp, narg, arg)
 {
-  int iarg;
   char *endptr;
 
   if (narg != 13)
@@ -47,7 +47,6 @@ FixContactRoll::FixContactRoll(LAMMPS *lmp, int narg, char **arg) :
   if (endptr == arg[6] || endptr == arg[7] || endptr == arg[8])
     error->all(FLERR,syntax);
 
-  // Normieren
   unorm = sqrt(ux*ux + uy*uy + uz*uz);
   if (unorm == 0.0)
     error->all(FLERR,"fix contact/roll: zero direction vector");
@@ -62,22 +61,21 @@ FixContactRoll::FixContactRoll(LAMMPS *lmp, int narg, char **arg) :
   sigma   = strtod(arg[11], &endptr);
   cutoff  = strtod(arg[12], &endptr);
 
-  if (endptr == arg[9] || endptr == arg[10] ||
-      endptr == arg[11] || endptr == arg[12])
+  if (endptr == arg[9] || endptr == arg[10] || endptr == arg[11] || endptr == arg[12])
     error->all(FLERR,syntax);
 
   // Precompute
   radius_sq = radius*radius;
   radius_plus_cutoff_sq = (radius+cutoff)*(radius+cutoff);
 
-  coeff1 = 48.0 * epsilon * pow(sigma,12.0);
-  coeff2 = 24.0 * epsilon * pow(sigma,6.0);
-  coeff3 = 4.0 * epsilon * pow(sigma,12.0);
-  coeff4 = 4.0 * epsilon * pow(sigma,6.0);
+  coeff1 = 18.0/15.0 * epsilon * pow(sigma,9.0);
+  coeff2 = 3.0 * epsilon * pow(sigma,3.0);
+  coeff3 = 2.0/15.0 * epsilon * pow(sigma,9.0);
+  coeff4 = 1.0 * epsilon * pow(sigma,3.0);
 
-  double r2inv = 1.0/(cutoff*cutoff);
-  double r6inv = r2inv*r2inv*r2inv;
-  offset = r6inv*(coeff3*r6inv - coeff4);
+  double r3inv = 1.0/(cutoff*cutoff*cutoff);
+  double r9inv = r3inv*r3inv*r3inv;
+  offset = coeff3*r9inv - coeff4*r3inv;
 
   energy_global_flag = 1;
   scalar_flag = 1;
@@ -88,7 +86,6 @@ FixContactRoll::FixContactRoll(LAMMPS *lmp, int narg, char **arg) :
   extvector = 1;
 
   force_flag = 0;
-
   for (int i = 0; i < 5; i++) {
     froll[i] = 0.0;
     froll_loc[i] = 0.0;
@@ -97,12 +94,15 @@ FixContactRoll::FixContactRoll(LAMMPS *lmp, int narg, char **arg) :
 
 /* ---------------------------------------------------------------------- */
 
-FixContactRoll::~FixContactRoll() {}
+FixContactRoll93::~FixContactRoll93() {
+  if (cxvar) free(cxvar);
+  if (cyvar) free(cyvar);
+  if (czvar) free(czvar);
+}
 
 /* ---------------------------------------------------------------------- */
 
-int FixContactRoll::setmask()
-{
+int FixContactRoll93::setmask() {
   int mask = 0;
   mask |= POST_FORCE;
   mask |= MIN_POST_FORCE;
@@ -112,38 +112,26 @@ int FixContactRoll::setmask()
 
 /* ---------------------------------------------------------------------- */
 
-void FixContactRoll::init()
-{
+void FixContactRoll93::init() {
   if (strcmp(update->integrate_style,"respa") == 0)
-    error->all(FLERR,"fix contact/roll: RESPA not supported.");
+    error->all(FLERR,"fix contact/roll: RESPA not yet supported.");
 }
 
 /* ---------------------------------------------------------------------- */
 
-void FixContactRoll::setup(int vflag)
-{
-  if (strcmp(update->integrate_style,"verlet") == 0)
-    post_force(vflag);
-}
+void FixContactRoll93::setup(int vflag) { post_force(vflag); }
+void FixContactRoll93::min_setup(int vflag) { post_force(vflag); }
 
 /* ---------------------------------------------------------------------- */
 
-void FixContactRoll::min_setup(int vflag)
-{
-  post_force(vflag);
-}
-
-/* ---------------------------------------------------------------------- */
-
-void FixContactRoll::post_force(int vflag)
+void FixContactRoll93::post_force(int vflag)
 {
   double **x = atom->x;
   double **f = atom->f;
   int *mask = atom->mask;
   int nlocal = atom->nlocal;
 
-  for (int i = 0; i < 5; i++)
-    froll_loc[i] = 0.0;
+  for (int i = 0; i < 5; i++) froll_loc[i] = 0.0;
 
   for (int i = 0; i < nlocal; i++) {
     if (mask[i] & groupbit) {
@@ -156,31 +144,27 @@ void FixContactRoll::post_force(int vflag)
 
       // Projektion auf Achse
       double dot = rx*ux + ry*uy + rz*uz;
-
       double rpx = dot * ux;
       double rpy = dot * uy;
       double rpz = dot * uz;
 
-      // radialer Abstand zum Zylinder
+      // Radialer Abstand
       double dx = rx - rpx;
       double dy = ry - rpy;
       double dz = rz - rpz;
-
       double rsq = dx*dx + dy*dy + dz*dz;
 
-      if (rsq < radius_sq) {
+      if (rsq < radius_sq)
         error->one(FLERR,"fix contact/roll: atom inside cylinder");
-      }
 
       if (rsq < radius_plus_cutoff_sq) {
-
         double r = sqrt(rsq);
         double rinv = 1.0/(r - radius);
-        double r2inv = rinv*rinv;
-        double r6inv = r2inv*r2inv*r2inv;
+        double r3inv = rinv*rinv*rinv;
+        double r9inv = r3inv*r3inv*r3inv;
 
-        double df = r6inv*(coeff1*r6inv - coeff2) * rinv;
-        double e  = r6inv*(coeff3*r6inv - coeff4) - offset;
+        double df = (coeff1*r9inv - coeff2*r3inv) * rinv;
+        double e  = (coeff3*r9inv - coeff4*r3inv) - offset;
 
         double fx = df * dx / r;
         double fy = df * dy / r;
@@ -204,15 +188,11 @@ void FixContactRoll::post_force(int vflag)
 
 /* ---------------------------------------------------------------------- */
 
-void FixContactRoll::min_post_force(int vflag)
-{
-  post_force(vflag);
-}
+void FixContactRoll93::min_post_force(int vflag) { post_force(vflag); }
 
 /* ---------------------------------------------------------------------- */
 
-double FixContactRoll::compute_scalar()
-{
+double FixContactRoll93::compute_scalar() {
   if (force_flag == 0) {
     MPI_Allreduce(froll_loc, froll, 5, MPI_DOUBLE, MPI_SUM, world);
     force_flag = 1;
@@ -222,8 +202,7 @@ double FixContactRoll::compute_scalar()
 
 /* ---------------------------------------------------------------------- */
 
-double FixContactRoll::compute_vector(int n)
-{
+double FixContactRoll93::compute_vector(int n) {
   if (force_flag == 0) {
     MPI_Allreduce(froll_loc, froll, 5, MPI_DOUBLE, MPI_SUM, world);
     force_flag = 1;
