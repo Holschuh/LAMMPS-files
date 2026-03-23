@@ -140,9 +140,14 @@ void FixContactRoll93::post_force(int vflag)
       double ry = x[i][1] - cy;
       double rz = x[i][2] - cz;
 
-      domain->minimum_image(rx, ry, rz);
+      // NEU: minimum_image für aktuelle LAMMPS-Version
+      double delta[3] = {rx, ry, rz};
+      domain->minimum_image(__FILE__, __LINE__, delta);
+      rx = delta[0];
+      ry = delta[1];
+      rz = delta[2];
 
-      // Projektion auf Achse
+      // Projektion auf Zylinderachse
       double dot = rx*ux + ry*uy + rz*uz;
       double rpx = dot * ux;
       double rpy = dot * uy;
