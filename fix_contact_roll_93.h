@@ -1,6 +1,6 @@
 #ifdef FIX_CLASS
 
-FixStyle(contact/roll,FixContactRoll93)
+FixStyle(contact/roll93,FixContactRoll93)
 
 #else
 
