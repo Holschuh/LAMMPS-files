@@ -26,24 +26,22 @@ class FixContactRoll93 : public Fix {
   double compute_vector(int);
 
  private:
-  // Variablen für dynamische Zentren (v_*)
+  // Variablen (v_*)
   char *cxvar, *cyvar, *czvar;
 
-  // Zylinderzentrum
+  // Zentrum
   double cx, cy, cz;
 
-  // Richtungsvektor des Zylinders
+  // Zylinderachse
   double ux, uy, uz;
   double unorm;
 
-  // Potentialparameter
+  // LJ Parameter
   double radius, epsilon, sigma, cutoff;
 
-  // vorab berechnete Werte für Effizienz
   double radius_sq, radius_plus_cutoff_sq;
   double coeff1, coeff2, coeff3, coeff4, offset;
 
-  // interne Flags und Kräfte
   int force_flag;
   double froll[5], froll_loc[5];
 };
