@@ -198,3 +198,64 @@ void FixContactRoll93::post_force(int vflag)
 
   force_flag = 0;
 }
+
+
+
+
+/* ---------------------------------------------------------------------- */
+
+void FixContactRoll93::init()
+{
+  if (strcmp(update->integrate_style,"respa") == 0)
+    error->all(FLERR,"fix contact/roll93: RESPA not supported.");
+}
+
+/* ---------------------------------------------------------------------- */
+
+void FixContactRoll93::setup(int vflag)
+{
+  if (strcmp(update->integrate_style,"verlet") == 0)
+    post_force(vflag);
+}
+
+/* ---------------------------------------------------------------------- */
+
+void FixContactRoll93::min_setup(int vflag)
+{
+  post_force(vflag);
+}
+
+/* ---------------------------------------------------------------------- */
+
+void FixContactRoll93::min_post_force(int vflag)
+{
+  post_force(vflag);
+}
+
+/* ---------------------------------------------------------------------- */
+
+double FixContactRoll93::compute_scalar()
+{
+  if (force_flag == 0) {
+    MPI_Allreduce(froll_loc, froll, 5, MPI_DOUBLE, MPI_SUM, world);
+    force_flag = 1;
+  }
+  return froll[0];
+}
+
+/* ---------------------------------------------------------------------- */
+
+double FixContactRoll93::compute_vector(int n)
+{
+  if (force_flag == 0) {
+    MPI_Allreduce(froll_loc, froll, 5, MPI_DOUBLE, MPI_SUM, world);
+    force_flag = 1;
+  }
+  return froll[n+1];
+}
+
+
+
+
+
+
