@@ -224,7 +224,7 @@ void FixContactSphere93::post_force(int vflag)
       double ry  = x[i][1] - cy;
       double rz  = x[i][2] - cz;
 
-      domain->minimum_image(rx, ry, rz);
+      domain->minimum_image(FLERR, rx, ry, rz);
 
       double rsq = rx*rx + ry*ry + rz*rz;
 
