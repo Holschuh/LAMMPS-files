@@ -100,6 +100,9 @@ FixContactRoll93::FixContactRoll93(LAMMPS *lmp, int narg, char **arg) :
   scalar_flag = 1;
   vector_flag = 1;
   size_vector = 4;
+  global_freq = 1;
+  extscalar = 1;
+  extvector = 1;
 
   force_flag = 0;
   for (int i = 0; i < 5; i++) {
